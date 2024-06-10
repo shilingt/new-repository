@@ -374,7 +374,7 @@ def main():
         input_df = preprocess_data(input_data)
 
         # Make prediction
-        #prediction = risk_ensemble_predict(input_df)
+        # prediction = risk_ensemble_predict(input_df)
 
         # Display the result below the button
         st.markdown("### Result")
