@@ -259,8 +259,8 @@ def risk_ensemble_predict(X_test_scaled):
 
     return risk_level_startification
 
-
-
+# Load the trained model
+risk_ensemble_model = load('risk_ensemble.pkl')
 
 
 
@@ -376,7 +376,7 @@ def main():
         input_df = preprocess_data(input_data)
 
         # Make prediction
-        # prediction = risk_ensemble_predict(input_df)
+        prediction = risk_ensemble_predict(input_df)
 
         # Display the result below the button
         st.markdown("### Result")
