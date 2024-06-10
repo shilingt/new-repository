@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import math
@@ -8,7 +9,7 @@ import numpy as np
 import pickle
 from joblib import load
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-      
+
     
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
