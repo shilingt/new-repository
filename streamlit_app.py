@@ -4,9 +4,7 @@ import math
 from pathlib import Path
 import datetime
 
-import random
 import numpy as np
-
 import pickle
 from joblib import load
 from sklearn.preprocessing import LabelEncoder, StandardScaler
@@ -74,28 +72,30 @@ def preprocess_data(data):
     df = df[columns_to_keep]
 
     # Categories to one-hot encode
-    Marital_type =  ['married', 'single', 'divorced', 'widow']
-    Lives_type =  ['family', 'friends', 'alone ']
-    Occupation_type =  ['employed', 'self employed','not working', 'retired']
-    Smoking_type =  ['ex smoker ', 'no', 'yes']
-    Family_type =  ['yes', 'no']
+    Gender_type = ['F', 'M']
+    Marital_type =  ['divorced', 'married', 'single', 'widow']
+    Lives_type =  ['alone', 'family', 'friends']
+    Occupation_type =  ['employed','not working', 'retired', 'self employed']
+    Smoking_type =  ['ex smoker', 'no', 'yes']
+    Family_type =  ['no', 'yes']
     ROM_type =  ['abnormal', 'normal']
-    Balance_type =  ['yes', 'no']
-    Functional_type =  ['independent ', 'assisted']
-    Walking_type =  ['independent', 'dependent']
-    Gait_type =  ['normal', 'abnormal']
-    Posture_type =  ['normal', 'abnormal']
-    HPT_type =  ['yes', 'no']
-    DM_type =  ['yes', 'no']
-    HPL_type =  ['yes', 'no']
-    Exercise_type =  ['active', 'moderate', 'inactive']
-    Stress_type =  ['yes', 'no']
-    BMI_type =  ['underweight', 'healthy', 'overweight', 'obese']
-    ECHO_type =  ['normal', 'borderline','reduced']
-    TestHR_type =  ['low intensity', 'moderate intensity', 'high intensity', 'maximum intensity', 'above maximum intensity']
-    TestMETS_type =  ['low intensity',  'moderate intensity (low)', 'moderate intensity (high)', 'high intensity' ]
+    Balance_type =  ['no', 'yes']
+    Functional_type =  ['assisted', 'independent ']
+    Walking_type =  ['dependent', 'independent']
+    Gait_type =  ['abnormal', 'normal']
+    Posture_type =  ['abnormal', 'normal']
+    HPT_type =  ['no', 'yes']
+    DM_type =  ['no', 'yes']
+    HPL_type =  ['no', 'yes']
+    Exercise_type =  ['active', 'inactive', 'moderate']
+    Stress_type =  ['no', 'yes']
+    BMI_type =  ['healthy', 'obese', 'overweight','underweight']
+    ECHO_type =  ['borderline','normal','reduced']
+    TestHR_type =  [ 'above maximum intensity', 'high intensity', 'low intensity', 'maximum intensity', 'moderate intensity']
+    TestMETS_type =  ['high intensity', 'low intensity',  'moderate intensity (high)', 'moderate intensity (low)' ]
 
     # Perform one-hot encoding
+    gender_encoded = one_hot_encode_categories(df2, 'Gender', Gender_type)
     marital_encoded = one_hot_encode_categories(df2, 'Marital Status', Marital_type)
     lives_encoded = one_hot_encode_categories(df2, 'Lives With', Lives_type)
     occupation_encoded = one_hot_encode_categories(df2, 'Occupation', Occupation_type)
@@ -118,7 +118,8 @@ def preprocess_data(data):
     testmets_encoded = one_hot_encode_categories(df2, 'Test Today - METS', TestMETS_type)
 
     # Concatenate the one-hot encoded DataFrames along the columns axis
-    one_hot_encoded_df = pd.concat([df2, marital_encoded, lives_encoded, occupation_encoded, smoking_encoded, family_encoded,
+    one_hot_encoded_df = pd.concat([df2, gender_encoded, marital_encoded, lives_encoded, occupation_encoded, smoking_encoded, family_encoded,
+                             rom_encoded, balance_encoded, functional_encoded, walking_encoded, gait_encoded, posture_encoded,
                              hpt_encoded, dm_encoded, hpl_encoded, exercise_encoded, stress_encoded, bmi_encoded,
                              echo_encoded, testhr_encoded, testmets_encoded], axis=1)
 
@@ -183,9 +184,7 @@ def preprocess_data(data):
 
     # Replace spaces with hyphens in string columns only
     df[string_columns] = df[string_columns].apply(lambda x: x.str.replace('+', '-'))
-
-
-    
+ 
     
     ########## Processed Risk Level Data #######################
     
@@ -222,25 +221,45 @@ def preprocess_data(data):
         df2 = df[key_features_columns]
         
         X_test = df2
-        X_test_scaled = risk_scaler.transform(X_test)
-        
+        #X_test_scaled = risk_scaler.transform(X_test)
     
+    return X_test
+
+
+
+
+def risk_ensemble_predict(X_test_scaled):
+    import pickle
+    from scipy.stats import mode
+    import numpy as np
     
+    from joblib import load
+    from scipy.stats import mode
+    import numpy as np
+
+    rf_model = load('risk_randomforest.pkl')
+    bbc_model = load('risk_bbc.pkl')
+    lr_model = load('risk_logistic.pkl')
+    label_encoder = load('risk_label_encoder.pkl')
+
+    # Make predictions
+    rf_preds = rf_model.predict(X_test_scaled)
+    bbc_preds = bbc_model.predict(X_test_scaled)
+    lr_preds = lr_model.predict(X_test_scaled)
+
+    # Majority voting
+    preds = np.array([rf_preds, bbc_preds, lr_preds])
+    majority_vote_preds = mode(preds, axis=0).mode
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    return X_test_scaled
+    # Decode the integer predictions back to original labels
+    risk_level_startification = label_encoder.inverse_transform(majority_vote_preds)
+
+
+    return risk_level_startification
+
+
+
+
 
 
 
@@ -355,7 +374,7 @@ def main():
         input_df = preprocess_data(input_data)
 
         # Make prediction
-        #prediction = model.predict(input_df)
+        #prediction = risk_ensemble_predict(input_df)
 
         # Display the result below the button
         st.markdown("### Result")
