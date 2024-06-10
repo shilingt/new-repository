@@ -1,9 +1,13 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import datetime
 from joblib import load
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from scipy.stats import mode
+from pytorch_tabular import TabularModel
+from pytorch_tabnet.tab_model import TabNetClassifier
+
       
     
 # Set the title and favicon that appear in the Browser's tab bar.
@@ -20,6 +24,10 @@ st.set_page_config(
 
 # Load the trained model
 risk_scaler = load('risk_scaler.pkl')
+risk_label_encoder = load('risk_label_encoder.pkl')
+hr_scaler = load('HR_scaler.pkl')
+hr_label_encoder = load('HR_label_encoder.pkl')
+
 
 # Function to preprocess user input data
 def preprocess_data(data):
@@ -186,8 +194,7 @@ def preprocess_data(data):
 ########################### Cardiac Risk Level ###########################
 
 def get_risk_X_test_scaled (df):
-    ########## Processed Risk Level Data #######################
-    
+
     key_feature_Risk_Level = ['TotalExerciseDuration', 'ExerciseHabit-Frequency', 'Age', 'FamilyHistory', 'TestToday-METS', 'Year', 
                               'TestToday-TerminationCause', 'RiskFactor-Exercise', 'ExerciseHabit-Duration', 'ECGResting', 'Occupation', 
                               'TestToday-peakHR', 'Diagnosis', 'RiskFactor-BMI', 'RiskFactor-HPT', 'RiskFactor-ECHO-EF', 'ExerciseHabit-Mode', 
@@ -230,20 +237,19 @@ def risk_ensemble_predict(df):
     rf_model = load('risk_randomforest.pkl')
     #bbc_model = load('risk_bbc.pkl')
     lr_model = load('risk_logistic.pkl')
-    label_encoder = load('risk_label_encoder.pkl')
 
     # Make predictions
     X_test = get_risk_X_test_scaled(df)
-    rf_preds = rf_model.predict(X_test_scaled)
-    #bbc_preds = bbc_model.predict(X_test_scaled)
-    lr_preds = lr_model.predict(X_test_scaled)
+    rf_preds = rf_model.predict(X_test)
+    #bbc_preds = bbc_model.predict(X_test)
+    lr_preds = lr_model.predict(X_test)
 
     # Majority voting
-    preds = np.array([rf_preds, bbc_preds, lr_preds])
+    preds = np.array([rf_preds, lr_preds])
     majority_vote_preds = mode(preds, axis=0).mode
     
     # Decode the integer predictions back to original labels
-    risk_level_startification = label_encoder.inverse_transform(majority_vote_preds)[0]
+    risk_level_startification = risk_label_encoder.inverse_transform(majority_vote_preds)[0]
 
 
     return risk_level_startification
@@ -253,18 +259,22 @@ risk_ensemble_model = load('risk_ensemble.pkl')
 
 #########################################################################
 
-def predicted_risk_level (df):
-    return WIP
+def predicted_risk_level(user_input):
+    # Preprocess the input data
+    df = preprocess_data(user_input)
+    
+    # Predict risk level and add it as a new column
+    df['RiskLevel'] = risk_ensemble_predict(df)
+    
+    return df
+
 
 ########################### Target Heart Rate ###########################
-
 # Load the trained model
 HR_scaler = load('HR_scaler.pkl')
 
 def HR_X_test_scaled (df):
     
-    
-
     target_variable = 'TargetHRCategory'
 
     key_feature_Target_HR_Category =['RiskLevel', 'TotalExerciseDuration', 'ExerciseHabit-Duration', 'TestToday-TerminationCause', 
@@ -303,17 +313,6 @@ def HR_X_test_scaled (df):
 
 
 def hr_ensemble_predict(X_test_scaled, val_data):
-    import pickle
-    from scipy.stats import mode
-    import numpy as np
-   
-    from joblib import load
-    from scipy.stats import mode
-
-    from pytorch_tabular import TabularModel
-    from pytorch_tabnet.tab_model import TabNetClassifier
-    
-    hr_label_encoder = load('HR_label_encoder.pkl')
 
     hr_rf_model = load('HR_randomforest.pkl')
     hr_tabtransformer = TabularModel.load_model("HR_tabtransformer")
@@ -477,8 +476,14 @@ def main():
 
         # Display the result below the button
         st.markdown("### Result")
-        st.write(input_df)
-        #st.write(f'Cardiac Risk Level: {risk_level_startification}')
+        # st.write(df)
+        st.write(f'Cardiac Risk Level: {risk_prediction}')
+
+        df = predicted_risk_level(df)
+        X_test_scaled = HR_X_test_scaled(df)
+        val_data = df
+        target_heart_rate = hr_ensemble_predict(X_test_scaled, val_data)
+        st.write('Predicted Target Heart Rate:', target_heart_rate)
 
 if __name__ == "__main__":
     main()
