@@ -222,8 +222,10 @@ def preprocess_data(data):
         
         X_test = df2
         X_test_scaled = risk_scaler.transform(X_test)
+
+        risk_X_test_scaled = X_test_scaled
     
-    return X_test_scaled
+    return risk_X_test_scaled
 
 
 
