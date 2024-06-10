@@ -221,9 +221,9 @@ def preprocess_data(data):
         df2 = df[key_features_columns]
         
         X_test = df2
-        #X_test_scaled = risk_scaler.transform(X_test)
+        X_test_scaled = risk_scaler.transform(X_test)
     
-    return X_test
+    return X_test_scaled
 
 
 
