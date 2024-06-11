@@ -25,7 +25,7 @@ st.set_page_config(
 # Load the trained model
 risk_scaler = load('risk_scaler.pkl')
 risk_label_encoder = load('risk_label_encoder.pkl')
-hr_scaler = load('HR_scaler.pkl')
+HR_scaler = load('HR_scaler.pkl')
 hr_label_encoder = load('HR_label_encoder.pkl')
 
 
@@ -259,12 +259,37 @@ risk_ensemble_model = load('risk_ensemble.pkl')
 
 #########################################################################
 
-def predicted_risk_level(user_input):
+def predicted_risk_level(data):
     # Preprocess the input data
-    df = preprocess_data(user_input)
-    
+    df = preprocess_data(data)
+
     # Predict risk level and add it as a new column
     df['RiskLevel'] = risk_ensemble_predict(df)
+
+    def one_hot_encode_categories(df, column_name, categories):
+        encoded_df = pd.DataFrame()
+
+        # Split by '+' and expand into separate columns
+        split_columns = df[column_name].str.split('+', expand=True)
+
+        # Iterate over each category and encode it
+        for category in categories:
+            # Create a new column for the category and set values based on presence
+            encoded_df[f'{column_name}_{category}'] = df[column_name].apply(lambda x: 1 if category in str(x).split('+') else 0)
+
+        return encoded_df
+    
+    # Categories to one-hot encode
+    risk_type = ['high', 'low', 'moderate']
+
+    # Perform one-hot encoding
+    risk_encoded = one_hot_encode_categories(df, 'RiskLevel', risk_type)
+
+    # Concatenate the one-hot encoded DataFrames along the columns axis
+    merged_df = pd.concat([df, risk_encoded], axis=1)
+    merged_df = merged_df.drop(columns=['RiskLevel'])
+
+    df = merged_df
     
     return df
 
@@ -309,7 +334,6 @@ def HR_X_test_scaled (df):
     HR_X_test_scaled = HR_scaler.transform(X_test)
     
     return HR_X_test_scaled
-
 
 
 def hr_ensemble_predict(X_test_scaled, val_data):
@@ -479,7 +503,7 @@ def main():
         # st.write(df)
         st.write(f'Cardiac Risk Level: {risk_prediction}')
 
-        df = predicted_risk_level(df)
+        df = predicted_risk_level(input_data)
         X_test_scaled = HR_X_test_scaled(df)
         val_data = df
         target_heart_rate = hr_ensemble_predict(X_test_scaled, val_data)
