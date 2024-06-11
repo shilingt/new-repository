@@ -6,4 +6,4 @@ joblib
 scipy==1.13.0
 pytorch_tabular
 pytorch-lightning==2.1.4
-pytorch_tabnet 
+pytorch-tabnet 
