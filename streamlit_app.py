@@ -1,21 +1,8 @@
-import pandas as pd
-import joblib
-from pytorch_tabular import TabularModel
-
-# Check Pandas version
-print(f"Pandas version: {pd.__version__}")
-
-# Try to load the model
-try:
-    model = TabularModel.load_model("HR_tabtransformer")
-    print("Model loaded successfully.")
-except TypeError as e:
-    print(f"Encountered an error: {e}")
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import datetime
+import pickle
 from joblib import load
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from scipy.stats import mode
@@ -249,13 +236,13 @@ def get_risk_X_test_scaled (df):
 def risk_ensemble_predict(df):
     # Load models
     rf_model = load('risk_randomforest.pkl')
-    #bbc_model = load('risk_bbc.pkl')
+    bbc_model = load('risk_bbc.pkl')
     lr_model = load('risk_logistic.pkl')
 
     # Make predictions
     X_test = get_risk_X_test_scaled(df)
     rf_preds = rf_model.predict(X_test)
-    #bbc_preds = bbc_model.predict(X_test)
+    bbc_preds = bbc_model.predict(X_test)
     lr_preds = lr_model.predict(X_test)
 
     # Majority voting
@@ -520,6 +507,8 @@ def main():
         df = predicted_risk_level(input_data)
         X_test_scaled = HR_X_test_scaled(df)
         val_data = df
+        val_data['target'] = pd.NA
+        
         target_heart_rate = hr_ensemble_predict(X_test_scaled, val_data)
         st.write('Predicted Target Heart Rate:', target_heart_rate)
 
