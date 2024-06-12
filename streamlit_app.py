@@ -1,3 +1,16 @@
+import pandas as pd
+from pytorch_tabular import TabularModel
+
+# Check Pandas version
+print(f"Pandas version: {pd.__version__}")
+
+# Try to load the model
+try:
+    model = TabularModel.load_model("HR_tabtransformer")
+    print("Model loaded successfully.")
+except TypeError as e:
+    print(f"Encountered an error: {e}")
+
 import streamlit as st
 import pandas as pd
 import numpy as np
