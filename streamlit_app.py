@@ -28,10 +28,56 @@ risk_scaler = load('risk_scaler.pkl')
 risk_label_encoder = load('risk_label_encoder.pkl')
 HR_scaler = load('HR_scaler.pkl')
 hr_label_encoder = load('HR_label_encoder.pkl')
+duration_scaler = load('duration_scaler.pkl')
+duration_label_encoder = load('duration_label_encoder.pkl')
+
 
 
 # Function to preprocess user input data
 def preprocess_data(data):
+    # Create a dataframe from the input data
+    
+    today = datetime.date.today()
+    
+    ## Add columns
+    df = pd.DataFrame([data])
+    df['Year'] = today.year
+    df['Total Muscle Power - UL'] = df['Muscle Power - UL - Right'] + df['Muscle Power - UL - Left']
+    df['Total Muscle Power - LL'] = df['Muscle Power - LL - Right'] + df['Muscle Power - LL - Left']
+    df['Total Muscle Power - Right'] = df['Muscle Power - UL - Right'] + df['Muscle Power - LL - Right']
+    df['Total Muscle Power - Left'] = df['Muscle Power - UL - Left'] + df['Muscle Power - LL - Left']
+    df['Total Muscle Power'] = df['Total Muscle Power - Right'] + df['Total Muscle Power - Left']
+    
+    df['Total Exercise Duration'] = df['Exercise Habit - Frequency'] * df['Exercise Habit - Duration']        
+    
+    # Replace NaN values with mean
+    df.fillna(0, inplace=True)
+
+    ## Remove space and replace '_' to '-'
+
+    # Iterate over all columns and rename them by removing spaces and symbols '<', '>', '='
+    for old_col in df.columns:
+        new_col = old_col.replace(' ', '').replace('<', '').replace('>', '').replace('=', '')
+        df.rename(columns={old_col: new_col}, inplace=True)
+
+    # Identify string columns
+    string_columns = df.select_dtypes(include=['object']).columns
+
+    # Replace spaces with hyphens in string columns only
+    df[string_columns] = df[string_columns].apply(lambda x: x.str.replace(' ', '-'))
+
+    # Replace spaces with hyphens in string columns only
+    def replace_plus_with_minus(value):
+        if isinstance(value, str):
+            return value.replace('+', '-')
+        return value
+    
+    df = df.applymap(replace_plus_with_minus)
+ 
+    return df
+
+
+def encoding_data(data):
     # Create a dataframe from the input data
     
     today = datetime.date.today()
@@ -236,13 +282,13 @@ def get_risk_X_test_scaled (df):
 def risk_ensemble_predict(df):
     # Load models
     rf_model = load('risk_randomforest.pkl')
-    bbc_model = load('risk_bbc.pkl')
+    #bbc_model = load('risk_bbc.pkl')
     lr_model = load('risk_logistic.pkl')
 
     # Make predictions
     X_test = get_risk_X_test_scaled(df)
     rf_preds = rf_model.predict(X_test)
-    bbc_preds = bbc_model.predict(X_test)
+    #bbc_preds = bbc_model.predict(X_test)
     lr_preds = lr_model.predict(X_test)
 
     # Majority voting
@@ -262,7 +308,7 @@ risk_ensemble_model = load('risk_ensemble.pkl')
 
 def predicted_risk_level(data):
     # Preprocess the input data
-    df = preprocess_data(data)
+    df = encoding_data(data)
 
     # Predict risk level and add it as a new column
     df['RiskLevel'] = risk_ensemble_predict(df)
@@ -335,9 +381,27 @@ def HR_X_test_scaled (df):
     
     return HR_X_test_scaled
 
-def get_val_data (df):
-    df['target'] = pd.NA
-    return df
+def get_val_data (data):
+    
+    df_initial = encoding_data(data)
+    df_initial['RiskLevel'] = risk_ensemble_predict(df_initial)
+    df2 = []
+    df2 = pd.DataFrame(df_initial['RiskLevel'])
+
+    ## Add columns
+    df = preprocess_data(data)
+    df ['RiskLevel'] = df2['RiskLevel']    
+
+    key_feature_Target_HR_Category =['RiskLevel','TotalExerciseDuration', 'ExerciseHabit-Duration', 'TestToday-TerminationCause', 
+                                     'ExerciseHabit-Frequency', 'FamilyHistory', 'Age', 'RiskFactor-Exercise', 'RiskFactor-HPT', 
+                                     'ExerciseHabit-Mode', 'TestToday-peakHR', 'Gender', 'Year', 'Occupation', 'ROM', 'Diagnosis', 
+                                     'RiskFactor-DM', 'RiskFactor-ECHO-EF', 'Smoking', 'ECGResting', 'RiskFactor-BMI', 'TestToday-METS', 'Posture']
+    
+    df2 = df[key_feature_Target_HR_Category]
+
+    # df2['target'] = "80-100"
+
+    return df2
 
 def hr_ensemble_predict(X_test_scaled, val_data):
 
@@ -360,7 +424,7 @@ def hr_ensemble_predict(X_test_scaled, val_data):
     majority_vote_preds = mode(preds, axis=0).mode
     
     # Decode the integer predictions back to original labels
-    target_heart_rate = hr_label_encoder.inverse_transform(majority_vote_preds)
+    target_heart_rate = hr_label_encoder.inverse_transform(majority_vote_preds)[0]
     
     return target_heart_rate
 
@@ -408,14 +472,16 @@ def duration_X_test_scaled(df):
 def duration_predict(df):
     duration_xgb_model = load('duration_gradient.pkl')
     xgb_preds = duration_xgb_model.predict(df)
+
+    recumbent_bike_duration = duration_label_encoder.inverse_transform(xgb_preds)[0]  
     
-    return xgb_preds
+    return recumbent_bike_duration
 
 ###########################################################################
 
 # Define the Streamlit app
 def main():
-    st.title("Cardiac Risk Predictor")
+    st.title("Personalsied Exercise Presciption and Cardiac Risk Level Startification")
 
     st.markdown(" ##### Demographic")
     col1, col2, col3, col4 = st.columns(4)
@@ -436,7 +502,7 @@ def main():
         Stress = st.selectbox('Stress', ['yes', 'no'])
         ExerciseHabitMode = st.multiselect('Exercise Mode', ['walking', 'cycling', 'jogging', 'others', 'no'], default=['walking'])
     with col2:
-        Smoking = st.selectbox('Smoking', ['ex smoker ', 'no', 'yes'])
+        Smoking = st.selectbox('Smoking', ['ex smoker', 'no', 'yes'])
         ExerciseHabitDuration = st.number_input('Exercise Duration (# of minutes per frequency)', min_value=0, max_value=480, value=30)
     with col3:
         Exercise = st.selectbox('Exercise', ['active', 'moderate', 'inactive'])
@@ -521,7 +587,7 @@ def main():
         }
 
         # Preprocess the input data
-        df = preprocess_data(input_data)
+        df = encoding_data(input_data)
 
         # Make prediction
         risk_prediction = risk_ensemble_predict(df)
@@ -532,31 +598,20 @@ def main():
         st.write(f'Cardiac Risk Level: {risk_prediction}')
 
         df = predicted_risk_level(input_data)
+        # st.dataframe(df)
+        df2 = preprocess_data(input_data)
+        # st.dataframe(df2)
+        val_data = get_val_data(input_data)
+        # st.write(f'{val_data}')
         X_test_scaled = HR_X_test_scaled(df)
-        val_data = get_val_data(df)
+        # st.dataframe(X_test_scaled)
         target_heart_rate = hr_ensemble_predict(X_test_scaled, val_data)
-        st.write('Predicted Target Heart Rate:', target_heart_rate)
+        st.write('Target Heart Rate:', target_heart_rate)
         
         X_test_scaled = duration_X_test_scaled(df)
         duration = duration_predict(X_test_scaled)
-        st.write(f'Cardiac Risk Level: {duration}')
+        st.write(f'Recumbent Bike Duration: {duration}')
         
 
 if __name__ == "__main__":
     main()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP Dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
