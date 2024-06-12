@@ -1,4 +1,5 @@
 import pandas as pd
+import joblib
 from pytorch_tabular import TabularModel
 
 # Check Pandas version
