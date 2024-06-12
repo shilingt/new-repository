@@ -8,8 +8,8 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from scipy.stats import mode
 from pytorch_tabular import TabularModel
 from pytorch_tabnet.tab_model import TabNetClassifier
-
-      
+from imblearn.ensemble import BalancedBaggingClassifier
+    
     
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
@@ -330,12 +330,14 @@ def HR_X_test_scaled (df):
 
     # Limit to key feature only
     df2 = df[key_features_columns]
-
     X_test = df2
     HR_X_test_scaled = HR_scaler.transform(X_test)
     
     return HR_X_test_scaled
 
+def get_val_data (df):
+    df['target'] = pd.NA
+    return df
 
 def hr_ensemble_predict(X_test_scaled, val_data):
 
@@ -364,27 +366,52 @@ def hr_ensemble_predict(X_test_scaled, val_data):
 
 
 
+########################### Duration ###########################
+# Load the trained model
+duration_scaler = load('duration_scaler.pkl')
 
 
+def duration_X_test_scaled(df):
+    target_variable = 'Recumbentbike:Duration' 
+
+    key_feature_Duration_Category =['Age', 'TotalExerciseDuration', 'ExerciseHabit-Duration', 'MusclePower-LL-Left', 'RiskLevel', 
+                                    'FunctionalActivity', 'TestToday-TerminationCause', 'TestToday-peakHR', 'RiskFactor-BMI', 
+                                    'ExerciseHabit-Frequency', 'Year', 'ECGResting', 'MusclePower-UL-Left', 'Diagnosis', 'ROM']   #change 5 (Add Set & remove space)
+
+    key_features = key_feature_Duration_Category
+    
+    # Initialize a dictionary to hold the lists of relevant columns for each key feature
+    relevant_columns = {}
+
+    # Initialize a list to hold all relevant column names
+    key_features_columns = []
+
+    # Iterate through each key feature
+    for feature in key_feature_Duration_Category:                                                        #change 8
+        # Filter the columns that match the key feature exactly before any underscore
+        # and include columns that extend beyond the key feature name with an underscore
+        # also include columns that match the original feature name without underscores
+        filtered_columns = [column for column in df if column.split('_')[0] == feature or 
+                            column.startswith(f"{feature}_") or 
+                            column == feature]  # New condition added here
+        # Extend the key_features_columns list with the filtered columns
+        key_features_columns.extend(filtered_columns)
+        
+    # Limit to key feature only
+    df2 = df[key_features_columns]
+    X_test = df2
+    duration_X_test_scaled = duration_scaler.transform(X_test)
+    
+    return duration_X_test_scaled
 
 
+def duration_predict(df):
+    duration_xgb_model = load('duration_gradient.pkl')
+    xgb_preds = duration_xgb_model.predict(df)
+    
+    return xgb_preds
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+###########################################################################
 
 # Define the Streamlit app
 def main():
@@ -506,11 +533,14 @@ def main():
 
         df = predicted_risk_level(input_data)
         X_test_scaled = HR_X_test_scaled(df)
-        val_data = df
-        val_data['target'] = pd.NA
-        
+        val_data = get_val_data(df)
         target_heart_rate = hr_ensemble_predict(X_test_scaled, val_data)
         st.write('Predicted Target Heart Rate:', target_heart_rate)
+        
+        X_test_scaled = duration_X_test_scaled(df)
+        duration = duration_predict(X_test_scaled)
+        st.write(f'Cardiac Risk Level: {duration}')
+        
 
 if __name__ == "__main__":
     main()
