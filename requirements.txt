@@ -4,8 +4,6 @@ scikit-learn==1.4.2
 altair>=4.0
 joblib
 scipy==1.13.0
-torch
-pytorch-tabular
-pytorch_tabular
+pytorch-tabular==1.1.0
 pytorch-lightning==2.1.4
-pytorch-tabnet
+pytorch-tabnet==4.1.0
