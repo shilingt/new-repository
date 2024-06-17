@@ -482,7 +482,7 @@ def duration_predict(df):
 
 # Define the Streamlit app
 def main():
-    st.title("Personalsied Exercise Presciption and Cardiac Risk Level Startification")
+    st.title("Personalized Exercise Prescription using Cardiac Risk Level")
 
     st.markdown(" ##### Demographic")
     col1, col2, col3, col4 = st.columns(4)
