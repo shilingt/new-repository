@@ -1,2 +1,7 @@
 *.sav filter=lfs diff=lfs merge=lfs -text
 *.ckpt filter=lfs diff=lfs merge=lfs -text
+risk_bbc.pkl filter=lfs diff=lfs merge=lfs -text
+callbacks.sav filter=lfs diff=lfs merge=lfs -text
+model.ckpt filter=lfs diff=lfs merge=lfs -text
+HR_tabtransformer/callbacks.sav filter=lfs diff=lfs merge=lfs -text
+HR_tabtransformer/model.ckpt filter=lfs diff=lfs merge=lfs -text
