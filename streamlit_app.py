@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -282,17 +283,17 @@ def get_risk_X_test_scaled (df):
 def risk_ensemble_predict(df):
     # Load models
     rf_model = load('risk_randomforest.pkl')
-    #bbc_model = load('risk_bbc.pkl')
+    bbc_model = load('risk_bbc.pkl')
     lr_model = load('risk_logistic.pkl')
 
     # Make predictions
     X_test = get_risk_X_test_scaled(df)
     rf_preds = rf_model.predict(X_test)
-    #bbc_preds = bbc_model.predict(X_test)
+    bbc_preds = bbc_model.predict(X_test)
     lr_preds = lr_model.predict(X_test)
 
     # Majority voting
-    preds = np.array([rf_preds, lr_preds])
+    preds = np.array([rf_preds, bbc_preds, lr_preds])
     majority_vote_preds = mode(preds, axis=0).mode
     
     # Decode the integer predictions back to original labels
@@ -593,9 +594,9 @@ def main():
         risk_prediction = risk_ensemble_predict(df)
 
         # Display the result below the button
-        st.markdown("### Result")
+        st.markdown("### Cardiac Risk Level Startification")
         # st.write(df)
-        st.write(f'Cardiac Risk Level: {risk_prediction}')
+        st.write(f'Risk Level: {risk_prediction}')
 
         df = predicted_risk_level(input_data)
         # st.dataframe(df)
@@ -606,11 +607,14 @@ def main():
         X_test_scaled = HR_X_test_scaled(df)
         # st.dataframe(X_test_scaled)
         target_heart_rate = hr_ensemble_predict(X_test_scaled, val_data)
-        st.write('Target Heart Rate:', target_heart_rate)
+        st.write("")
+        st.markdown('### For exercise prescription:')
+        st.write('Type: Recumbent Bike')
+        st.write('Intensity - Target Heart Rate:', target_heart_rate, 'bpm')
         
         X_test_scaled = duration_X_test_scaled(df)
         duration = duration_predict(X_test_scaled)
-        st.write(f'Recumbent Bike Duration: {duration}')
+        st.write(f'Time - Recumbent Bike Duration: {duration}', 'mins')
         
 
 if __name__ == "__main__":
